@@ -1,0 +1,35 @@
+﻿
+@{
+    var test = "Hello dynamic!";
+}
+
+
+<html>
+    <head>Hello this is a dynamic report.</head>
+
+    <body>
+        <div id="body">@test</div>
+    @if (Model is not null)
+    {
+        <div>The model value is @Model.Id</div>
+        <div>The global identifier for the model value is @Model.DefaultIdentifier</div>
+    }
+    <button id="test" type="button">Click me!</button>
+
+    <button id="secondTest" onclick="@Url.Action("~/reports/1/details")">Reload page with identifier.</button>
+    </body>
+</html>
+
+<script>
+    document.querySelector('#test').addEventListener('click', () => {
+        fetch('https://localhost:44376/reports/1/details?id=23')
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                // do something with the returned data
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    })
+</script>
