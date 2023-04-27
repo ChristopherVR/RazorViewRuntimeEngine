@@ -69,6 +69,7 @@ public class DynamicControllerFactory
             ActionDescriptor = new(),
         };
 
+        // TODO: Cater for Multiple endpoints
         var actionMethodInfo = controllerInstance.GetMethod(actionName, BindingFlags.Default | BindingFlags.IgnoreCase | BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
 
         if (actionMethodInfo is null)
@@ -83,7 +84,7 @@ public class DynamicControllerFactory
         for (int i = 0; i < actionParameters.Length; i++)
         {
             var parameterInfo = actionParameters[i];
-            parameterValues[i] = GetParameterValueAsync(parameterInfo, assembly, CancellationToken.None);
+            parameterValues[i] = await GetParameterValueAsync(parameterInfo, assembly, CancellationToken.None);
         }
         var actionResult = await Task.FromResult(actionMethodInfo.Invoke(instance, parameterValues) as IActionResult);
 
@@ -174,6 +175,11 @@ public class DynamicControllerFactory
                 {
                     return data;
                 }
+            }
+
+            if (propInfo.ParameterType == typeof(IFormCollection))
+            {
+                return httpContext.Request.Form;
             }
         }
 

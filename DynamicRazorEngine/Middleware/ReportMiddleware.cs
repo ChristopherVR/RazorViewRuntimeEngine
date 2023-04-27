@@ -25,7 +25,7 @@ public static class ApplicationBuilderExtensions
         {
             BasePath = "wwwroot/reports",
             RoutePattern = "/reports/{reportId:int}/{action}",
-            BaseIndexRoutePattern = "/repors/{reportId:int}",
+            BaseIndexRoutePattern = "/reports/{reportId:int}",
             HttpMethods = new[] { "PATCH", "POST", "GET", "DELETE", "PUT" },
         };
 

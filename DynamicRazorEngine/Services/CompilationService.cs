@@ -35,6 +35,8 @@ public class CompilationServices
             MetadataReference.CreateFromFile(Assembly.Load("netstandard, Version=2.1.0.0").Location),
             MetadataReference.CreateFromFile(Assembly.Load("System.Runtime, Version=7.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a").Location),
             MetadataReference.CreateFromFile(Assembly.Load("Microsoft.CSharp, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a").Location),
+            MetadataReference.CreateFromFile(Assembly.Load("Microsoft.Extensions.Primitives, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60").Location),
+            // 
             MetadataReference.CreateFromFile(typeof(ExpandoObject).Assembly.Location),
             MetadataReference.CreateFromFile(Assembly.Load("Microsoft.AspNetCore.Mvc.Abstractions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60").Location),
             MetadataReference.CreateFromFile(Assembly.GetCallingAssembly().Location),

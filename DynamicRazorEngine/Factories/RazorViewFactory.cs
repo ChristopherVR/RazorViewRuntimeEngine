@@ -36,6 +36,7 @@ public class RazorViewFactory
             HttpContext = _contextAccessor.HttpContext!,
             RouteData = _contextAccessor.HttpContext!.GetRouteData(),
             ViewData = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(new EmptyModelMetadataProvider(), new()),
+            ActionDescriptor = new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor(),
             Writer = new StringWriter(),
         };
 

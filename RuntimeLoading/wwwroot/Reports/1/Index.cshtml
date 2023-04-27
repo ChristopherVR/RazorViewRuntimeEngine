@@ -1,8 +1,8 @@
 ﻿
 @{
-    var test = "Hello dynamic!";
+    var test = "Hello dynamic asdasd!";
+    Layout = "/Pages/Shared/_Layout.cshtml";
 }
-
 
 <html>
     <head>Hello this is a dynamic report.</head>
@@ -11,25 +11,16 @@
         <div id="body">@test</div>
     @if (Model is not null)
     {
-        <div>The model value is @Model.Id</div>
-        <div>The global identifier for the model value is @Model.DefaultIdentifier</div>
+        <div>The form has been posted.</div>
+        <div>The FirstName is: @Model.FirstName</div>
     }
-    <button id="test" type="button">Click me!</button>
 
-    <button id="secondTest" onclick="@Url.Action("~/reports/1/details")">Reload page with identifier.</button>
+    <form method="post" action="https://localhost:44376/reports/1/create">
+        <label for="firstName">First Name:</label>
+        <input type="text" id="firstName" name="FirstName" value="@Model?.FirstName" />
+
+        <button class="btn btn-primary" type="submit">Submit</button>
+    </form>
     </body>
 </html>
 
-<script>
-    document.querySelector('#test').addEventListener('click', () => {
-        fetch('https://localhost:44376/reports/1/details?id=23')
-            .then(response => response.json())
-            .then(data => {
-                console.log(data);
-                // do something with the returned data
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
-    })
-</script>

@@ -25,12 +25,6 @@ public class ReportController : Controller
         return View(Url.Content("~/wwwroot/Reports/1/Index.cshtml"), o);
     }
 
-    // GET: HomeController/Create
-    public ActionResult Create()
-    {
-        return View();
-    }
-
     // POST: HomeController/Create
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -38,7 +32,14 @@ public class ReportController : Controller
     {
         try
         {
-            return RedirectToAction(nameof(Index));
+            dynamic o = new ExpandoObject();
+            o.Id = 1;
+            o.DefaultIdentifier = RuntimeLoading.Globals.DefaultIdentifier;
+
+            _ = collection.TryGetValue("FirstName", out var firstName);
+            o.FirstName = firstName;
+
+            return View(Url.Content("~/wwwroot/Reports/1/Index.cshtml"), o);
         }
         catch
         {
