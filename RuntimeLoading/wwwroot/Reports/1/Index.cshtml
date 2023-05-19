@@ -15,12 +15,31 @@
         <div>The FirstName is: @Model.FirstName</div>
     }
 
-    <form method="post" action="https://localhost:44376/reports/1/create">
+    <form method="post" action="https://localhost:44376/reports/1/details">
         <label for="firstName">First Name:</label>
         <input type="text" id="firstName" name="FirstName" value="@Model?.FirstName" />
 
         <button class="btn btn-primary" type="submit">Submit</button>
     </form>
+
+    <button id="btn" type="button">Noel</button>
     </body>
 </html>
+
+<script>
+
+document.querySelector('#btn').addEventListener('click', () => {
+    fetch('https://localhost:44376/reports/1/details')
+  .then(response => response.json())
+  .then(data => {
+    // Do something with the data
+    console.log(data);
+    alert(data.value);
+  })
+  .catch(error => {
+    // Handle any errors
+    console.error('Error:', error);
+  });
+})
+</script>
 

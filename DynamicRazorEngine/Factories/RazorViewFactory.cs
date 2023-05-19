@@ -1,14 +1,16 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Reflection;
 
 namespace DynamicRazorEngine.Factories;
 
-public class RazorViewFactory
+internal sealed class RazorViewFactory
 {
     private readonly ILogger<RazorViewFactory> _logger;
     private readonly IRazorViewEngine _razorViewEngine;
@@ -19,17 +21,25 @@ public class RazorViewFactory
         IRazorViewEngine razorViewEngine,
         IHttpContextAccessor httpContextAccessor)
     {
-        _contextAccessor = httpContextAccessor;
-        _logger = logger;
-        _razorViewEngine = razorViewEngine;
+        _contextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _razorViewEngine = razorViewEngine ?? throw new ArgumentNullException(nameof(razorViewEngine));
     }
 
-    public async Task<IActionResult> ExecuteAsync(string pagePath)
+    public async Task<IActionResult> ExecuteAsync(HttpContext context, string pagePath)
     {
         _logger.LogDebug("Creating RazorView with path {pagePath}", pagePath);
 
         var pageViewResult = _razorViewEngine.GetView(null, pagePath, true);
         var pageView = pageViewResult.View;
+
+        // TODO: Need to compile the controller first in order to extract this info.
+        //var actionProvider = context.RequestServices.GetService<IActionDescriptorCollectionProvider>()!;
+
+        //// TODO: Cater for multiple endpoints with the same action name.
+        //var actionDescripter = actionProvider.ActionDescriptors.Items
+        //    .OfType<ControllerActionDescriptor>()
+        //    .First(y => y.ActionName == "Index" && y.ControllerTypeInfo == type);
 
         var viewContext = new Microsoft.AspNetCore.Mvc.Rendering.ViewContext
         {

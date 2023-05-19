@@ -9,7 +9,7 @@ using System.Reflection;
 namespace DynamicRazorEngine.Services;
 
 // TODO: This needs to be swapped with the DynamicModule nuget package.
-public class CompilationServices
+internal sealed class CompilationServices
 {
     private readonly ApplicationPartManager _partManager;
     private readonly CSharpCompilationOptions _compilationOptions;

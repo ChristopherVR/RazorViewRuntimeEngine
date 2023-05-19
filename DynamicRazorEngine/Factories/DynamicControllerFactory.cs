@@ -1,14 +1,21 @@
-﻿using DynamicRazorEngine.Services;
+﻿using DynamicRazorEngine.Provider;
+using DynamicRazorEngine.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ViewEngines;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Reflection;
 
-
 namespace DynamicRazorEngine.Factories;
-public class DynamicControllerFactory
+
+internal sealed class DynamicControllerFactory
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IHttpContextAccessor _contextAccessor;
@@ -21,13 +28,13 @@ public class DynamicControllerFactory
         IHttpContextAccessor contextAccessor,
         ILogger<DynamicControllerFactory> logger)
     {
-        _serviceProvider = serviceProvider;
-        _contextAccessor = contextAccessor;
-        _compilationServices = compilationServices;
-        _logger = logger;
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _contextAccessor = contextAccessor ?? throw new ArgumentNullException(nameof(contextAccessor));
+        _compilationServices = compilationServices ?? throw new ArgumentNullException(nameof(compilationServices));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<IActionResult?> ExecuteAsync(string controllerPath, string endpoint)
+    public async Task<IActionResult?> ExecuteAsync(HttpContext context, string controllerPath, string endpoint)
     {
         var compilation = await LoadControllerTypeAsync(controllerPath);
         
@@ -37,13 +44,13 @@ public class DynamicControllerFactory
         }
 
         var controllerInstance = ActivatorUtilities.CreateInstance(_serviceProvider, compilation.Type);
-
+  
         if (controllerInstance is null)
         {
             return new StatusCodeResult(StatusCodes.Status500InternalServerError);
         }
 
-        var actionResult = await InvokeControllerActionAsync(compilation.Type, compilation.ControllerAssembly, controllerInstance, endpoint);
+        var actionResult = await InvokeControllerActionAsync(context, compilation.Type, compilation.ControllerAssembly, controllerInstance, endpoint);
 
         return actionResult;
     }
@@ -55,46 +62,179 @@ public class DynamicControllerFactory
         return (compilation.CompiledType, compilation.Assembly);
     }
 
-    private async Task<IActionResult> InvokeControllerActionAsync(TypeInfo controllerInstance, Assembly assembly, object instance, string actionName)
+    private async Task<IActionResult> InvokeControllerActionAsync(HttpContext context, TypeInfo type, Assembly assembly, object instance, string actionName)
     {
         if (instance is not ControllerBase cb) 
         {
             return new NotFoundResult();
         }
+    
+        var actionProvider = context.RequestServices.GetService<IActionDescriptorCollectionProvider>()!;
 
-        cb.ControllerContext = new ControllerContext()
+        var assemblyPart = new AssemblyPart(assembly);
+
+        var partManager = context.RequestServices.GetService<ApplicationPartManager>()!;
+
+
+        if (!actionProvider.ActionDescriptors.Items
+            .OfType<ControllerActionDescriptor>()
+            .Any(z => z.ControllerTypeInfo.FullName == type.FullName))
         {
-            HttpContext = _contextAccessor.HttpContext!,
-            RouteData = _contextAccessor.HttpContext!.GetRouteData(),
-            ActionDescriptor = new(),
+            partManager.ApplicationParts.Add(assemblyPart);
+
+            // Notify change
+            StaticDescripterChangeProvider.Instance.Refresh();
+        } 
+        else
+        {
+            // TODO: do this better
+            type = actionProvider.ActionDescriptors.Items
+            .OfType<ControllerActionDescriptor>()
+            .First(z => z.ControllerTypeInfo.FullName == type.FullName).ControllerTypeInfo;
+
+            var controllerInstance = ActivatorUtilities.CreateInstance(context.RequestServices, type);
+
+            instance = controllerInstance;
+        }
+
+        // TODO: Cater for multiple endpoints with the same action name.
+        var actionDescripter = actionProvider.ActionDescriptors.Items
+            .OfType<ControllerActionDescriptor>()
+            .First(y => y.ActionName.Equals(actionName, StringComparison.OrdinalIgnoreCase) && y.ControllerTypeInfo.FullName == type.FullName);
+
+        var actionContext = new ActionContext(
+            context,
+            context.GetRouteData(),
+            actionDescripter);
+
+        var mvcOptions = context.RequestServices.GetRequiredService<IOptions<MvcOptions>>().Value;
+        var parameterBinder = context.RequestServices.GetRequiredService<ParameterBinder>()!;
+        var modelBinderFactory = context.RequestServices.GetRequiredService<IModelBinderFactory>()!;
+        var modelMetadataProvider = context.RequestServices.GetRequiredService<IModelMetadataProvider>()!;
+
+        var controllerContext = new ControllerContext(actionContext)
+        {
+            ValueProviderFactories = mvcOptions.ValueProviderFactories,
         };
+       
+        var valueProvider = await CompositeValueProvider.CreateAsync(controllerContext);
+        
+        var parameters = controllerContext.ActionDescriptor.Parameters;
+        
+        var parameterBindingInfo = GetParameterBindingInfo(
+                        modelBinderFactory,
+                        modelMetadataProvider,
+                        controllerContext.ActionDescriptor);
 
-        // TODO: Cater for Multiple endpoints
-        var actionMethodInfo = controllerInstance.GetMethod(actionName, BindingFlags.Default | BindingFlags.IgnoreCase | BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        var modelBindingResult = new List<ModelBindingResult>();
 
-        if (actionMethodInfo is null)
+        for (var i = 0; i < parameters.Count; i++)
         {
-            return new NotFoundResult();
+            var parameter = parameters[i];
+            var bindingInfo = parameterBindingInfo![i];
+            var modelMetadata = bindingInfo.ModelMetadata;
+
+            if (!modelMetadata.IsBindingAllowed)
+            {
+                continue;
+            }
+
+            var model = await parameterBinder.BindModelAsync(
+                controllerContext,
+                bindingInfo.ModelBinder,
+                valueProvider,
+                parameter,
+                modelMetadata,
+                value: modelMetadata.ModelType.IsValueType ? Activator.CreateInstance(modelMetadata.ModelType) : default);
+
+            if (!model.IsModelSet && modelMetadata.ModelType.IsValueType)
+            {
+                model = ModelBindingResult.Success(Activator.CreateInstance(modelMetadata.ModelType));
+            }
+
+            modelBindingResult.Add(model);
         }
 
-        var actionParameters = actionMethodInfo.GetParameters();
+        // Invoke the action method with the bound parameters
+        var actionResult = actionDescripter.MethodInfo.Invoke(instance, modelBindingResult.Select(x => x.Model).ToArray());
 
-        object?[]? parameterValues = new object[actionParameters.Length];
-
-        for (int i = 0; i < actionParameters.Length; i++)
+        var response = actionResult switch
         {
-            var parameterInfo = actionParameters[i];
-            parameterValues[i] = await GetParameterValueAsync(parameterInfo, assembly, CancellationToken.None);
-        }
-        var actionResult = await Task.FromResult(actionMethodInfo.Invoke(instance, parameterValues) as IActionResult);
+            // TODO: Cater for void responses.
+            Task d => await (dynamic)d,
+            _ => actionResult,
+        };
 
         if (instance is IDisposable dp)
         {
             dp.Dispose();
+            partManager.ApplicationParts.Remove(assemblyPart);
+
+            // Notify change
+            StaticDescripterChangeProvider.Instance.Refresh();
         }
 
-        return actionResult ?? new NotFoundResult();
+        if (response is not null)
+        {
+            if (response is ViewResult view)
+            {
+                return view;
+            }
+
+            return new OkObjectResult(response);
+        }
+
+        return new NotFoundResult();
     }
+
+    private static BinderItem[]? GetParameterBindingInfo(
+     IModelBinderFactory modelBinderFactory,
+     IModelMetadataProvider modelMetadataProvider,
+     ControllerActionDescriptor actionDescriptor)
+    {
+        var parameters = actionDescriptor.Parameters;
+        if (parameters.Count == 0)
+        {
+            return null;
+        }
+
+        var parameterBindingInfo = new BinderItem[parameters.Count];
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            var parameter = parameters[i];
+
+            ModelMetadata metadata;
+            if (
+                modelMetadataProvider is ModelMetadataProvider modelMetadataProviderBase &&
+                parameter is ControllerParameterDescriptor controllerParameterDescriptor)
+            {
+                // The default model metadata provider derives from ModelMetadataProvider
+                // and can therefore supply information about attributes applied to parameters.
+                metadata = modelMetadataProviderBase.GetMetadataForParameter(controllerParameterDescriptor.ParameterInfo);
+            }
+            else
+            {
+                // For backward compatibility, if there's a custom model metadata provider that
+                // only implements the older IModelMetadataProvider interface, access the more
+                // limited metadata information it supplies. In this scenario, validation attributes
+                // are not supported on parameters.
+                metadata = modelMetadataProvider.GetMetadataForType(parameter.ParameterType);
+            }
+
+            var binder = modelBinderFactory.CreateBinder(new ModelBinderFactoryContext
+            {
+                BindingInfo = parameter.BindingInfo,
+                Metadata = metadata,
+                CacheToken = parameter,
+            });
+
+            parameterBindingInfo[i] = new BinderItem(binder, metadata);
+        }
+
+        return parameterBindingInfo;
+    }
+
+    private readonly record struct BinderItem(IModelBinder ModelBinder, ModelMetadata ModelMetadata);
 
     /// <summary>
     /// Gets the constructor or method paramater value. The server's <see cref="IServiceProvider"/> will be used to resolve any dependency injection services.
@@ -109,7 +249,8 @@ public class DynamicControllerFactory
         IServiceProvider serviceProvider = (_contextAccessor.HttpContext?.RequestServices ?? _serviceProvider)!;
 
         string? name = propInfo.Name?.ToUpperInvariant();
-        if (serviceProvider.GetService(propInfo.ParameterType) is not null)
+
+        if (propInfo.GetCustomAttributes(typeof(FromServicesAttribute), false).Any() || serviceProvider.GetService(propInfo.ParameterType) is not null)
         {
             return serviceProvider.GetService(propInfo.ParameterType);
         }

@@ -1,8 +1,8 @@
 ﻿using System;
+using System.Collections.ObjectModel;
 using System.Dynamic;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-
 namespace RuntimeLoading.wwwroot.Reports._1;
 
 public class ReportController : Controller
@@ -14,15 +14,17 @@ public class ReportController : Controller
     }
 
     // GET: HomeController/Details/5
-    public ActionResult Details(int id)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public ActionResult Details(IFormCollection collection, int id)
     {
-        Console.WriteLine("Hello the id is {0}", id);
+        _ = collection.TryGetValue("FirstName", out var firstName);
 
-        dynamic o = new ExpandoObject();
-        o.Id = id;
-        o.DefaultIdentifier = RuntimeLoading.Globals.DefaultIdentifier;
+        return Ok($"OI WAAR MY PENOR PIC hoes toes v2{RuntimeLoading.Globals.DefaultIdentifier}");
+    }
 
-        return View(Url.Content("~/wwwroot/Reports/1/Index.cshtml"), o);
+    public ActionResult Penor() {
+        return Ok("OI WAAR MY PENOR PIC");
     }
 
     // POST: HomeController/Create
