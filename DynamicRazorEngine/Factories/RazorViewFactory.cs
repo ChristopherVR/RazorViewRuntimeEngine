@@ -1,36 +1,41 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using DynamicRazorEngine.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Controllers;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace DynamicRazorEngine.Factories;
 
-internal sealed class RazorViewFactory
+internal sealed class RazorViewFactory : IRazorViewFactory
 {
     private readonly ILogger<RazorViewFactory> _logger;
     private readonly IRazorViewEngine _razorViewEngine;
     private readonly IHttpContextAccessor _contextAccessor;
+    private readonly IReportService _reportService;
 
     public RazorViewFactory(
         ILogger<RazorViewFactory> logger,
         IRazorViewEngine razorViewEngine,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IReportService reportService)
     {
         _contextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _razorViewEngine = razorViewEngine ?? throw new ArgumentNullException(nameof(razorViewEngine));
+        _reportService = reportService ?? throw new ArgumentNullException(nameof(reportService));
     }
 
-    public async Task<IActionResult> ExecuteAsync(HttpContext context, string pagePath)
+    public async Task<IActionResult> ExecuteAsync(RazorViewFactoryRequest request)
     {
-        _logger.LogDebug("Creating RazorView with path {pagePath}", pagePath);
+        var report = await _reportService.GetAsync(request.ReportId) ?? throw new ArgumentException(nameof(request.ReportId));
 
-        var pageViewResult = _razorViewEngine.GetView(null, pagePath, true);
+        _logger.LogDebug("Creating RazorView with path {pagePath}", report.Path);
+        var viewPath = $"{report.Path}/{report.MainView ?? "Index"}.cshtml";
+
+        var pageViewResult = _razorViewEngine.GetView(null, viewPath, isMainPage: true);
+
         var pageView = pageViewResult.View;
 
         // TODO: Need to compile the controller first in order to extract this info.
@@ -45,8 +50,8 @@ internal sealed class RazorViewFactory
         {
             HttpContext = _contextAccessor.HttpContext!,
             RouteData = _contextAccessor.HttpContext!.GetRouteData(),
-            ViewData = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(new EmptyModelMetadataProvider(), new()),
-            ActionDescriptor = new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor(),
+            ViewData = new(new EmptyModelMetadataProvider(), new()),
+            ActionDescriptor = new(),
             Writer = new StringWriter(),
         };
 
