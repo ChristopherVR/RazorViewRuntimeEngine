@@ -1,45 +1,14 @@
-﻿
-@{
-    var test = "Hello dynamic asdasd!";
+﻿@{
     Layout = "/Pages/Shared/_Layout.cshtml";
+
+    var url = Url.Content("~/reports/1/create");
 }
 
 <html>
-    <head>Hello this is a dynamic report.</head>
-
+    <head>Hello this is the main page of the report.</head>
     <body>
-        <div id="body">@test</div>
-    @if (Model is not null)
-    {
-        <div>The form has been posted.</div>
-        <div>The FirstName is: @Model.FirstName</div>
-    }
-
-    <form method="post" action="https://localhost:44376/reports/1/details">
-        <label for="firstName">First Name:</label>
-        <input type="text" id="firstName" name="FirstName" value="@Model?.FirstName" />
-
-        <button class="btn btn-primary" type="submit">Submit</button>
-    </form>
-
-    <button id="btn" type="button">Noel</button>
-    </body>
+    <button class="btn btn-primary" data-url="@url" type="button">Redirect to Create Page</button>
+</body>
 </html>
 
-<script>
-
-document.querySelector('#btn').addEventListener('click', () => {
-    fetch('https://localhost:44376/reports/1/details')
-  .then(response => response.json())
-  .then(data => {
-    // Do something with the data
-    console.log(data);
-    alert(data.value);
-  })
-  .catch(error => {
-    // Handle any errors
-    console.error('Error:', error);
-  });
-})
-</script>
-
+<script src="~/Reports/1/index.js"></script>

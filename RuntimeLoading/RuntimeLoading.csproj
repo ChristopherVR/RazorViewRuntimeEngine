@@ -9,6 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="wwwroot\Reports\**" />
+    <Content Remove="wwwroot\Reports\**" />
+    <EmbeddedResource Remove="wwwroot\Reports\**" />
+    <None Remove="wwwroot\Reports\**" />
+  </ItemGroup>
+
+  
+  <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.17.0" />
   </ItemGroup>
 
