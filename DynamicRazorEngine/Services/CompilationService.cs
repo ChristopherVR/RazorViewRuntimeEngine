@@ -8,7 +8,6 @@ using System.Reflection;
 
 namespace DynamicRazorEngine.Services;
 
-// TODO: This needs to be swapped with the DynamicModule nuget package.
 internal sealed class CompilationServices
 {
     private readonly ApplicationPartManager _partManager;
@@ -20,9 +19,16 @@ internal sealed class CompilationServices
         _compilationOptions = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
     }
 
-    public CompilationResult Compile(string fileName, string content)
+    public async Task<CompilationResult> CompileAsync(string filePath, string? controller)
     {
-        var syntaxTree = CSharpSyntaxTree.ParseText(content);
+        var syntaxTrees = new List<SyntaxTree>();
+
+        foreach (var file in Directory.EnumerateFiles(filePath, "*.cs", SearchOption.AllDirectories))
+        {
+            string contents = await File.ReadAllTextAsync(file);
+            syntaxTrees.Add(CSharpSyntaxTree.ParseText(contents));
+        }
+
         var references = new List<MetadataReference>(new MetadataReference[]
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
@@ -39,7 +45,7 @@ internal sealed class CompilationServices
             MetadataReference.CreateFromFile(Assembly.Load("System.Linq, Version=7.0.0.0").Location),
             MetadataReference.CreateFromFile(typeof(ExpandoObject).Assembly.Location),
             MetadataReference.CreateFromFile(Assembly.Load("Microsoft.AspNetCore.Mvc.Abstractions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60").Location),
-               MetadataReference.CreateFromFile(Assembly.Load("System.Collections, Version=7.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a").Location),
+            MetadataReference.CreateFromFile(Assembly.Load("System.Collections, Version=7.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a").Location),
             MetadataReference.CreateFromFile(Assembly.GetCallingAssembly().Location),
             MetadataReference.CreateFromFile(Assembly.GetExecutingAssembly().Location),
             MetadataReference.CreateFromFile(typeof(HttpPostAttribute).Assembly.Location),
@@ -62,9 +68,10 @@ internal sealed class CompilationServices
             var metadataReference = MetadataReference.CreateFromFile(library);
             references.Add(metadataReference);
         }
-        var compilation = CSharpCompilation.Create(Path.GetFileNameWithoutExtension(fileName))
+
+        var compilation = CSharpCompilation.Create("Dynamic_Controller_Assembly")
             .WithOptions(_compilationOptions)
-            .AddSyntaxTrees(syntaxTree)
+            .AddSyntaxTrees(syntaxTrees)
             .AddReferences(references);
 
         using var ms = new MemoryStream();
@@ -83,12 +90,14 @@ internal sealed class CompilationServices
         
         ms.Seek(0, SeekOrigin.Begin);
         var assembly = Assembly.Load(ms.ToArray());
-        var type = assembly.GetExportedTypes().First(y => y.BaseType == typeof(Controller));
+        var type = assembly
+            .GetExportedTypes()
+            .FirstOrDefault(y => y.IsAssignableTo(typeof(ControllerBase)) && y.Name == (!string.IsNullOrWhiteSpace(controller) ? $"{controller}Controller" : y.Name));
         
         return new() 
         { 
             Success = true,
-            CompiledType = type!.GetTypeInfo(),
+            CompiledType = type?.GetTypeInfo(),
             Assembly = assembly,
         };
     }

@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
 
-
 namespace DynamicRazorEngine.Factories;
 
 internal sealed class DynamicControllerFactory : IDynamicControllerFactory
@@ -45,23 +44,23 @@ internal sealed class DynamicControllerFactory : IDynamicControllerFactory
         _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
     }
     
-    public async Task<IActionResult?> ExecuteAsync(ControllerFactoryRequest request)
+    public async Task<(IActionResult? Result, ActionContext? ActionContext)> ExecuteAsync(ControllerFactoryRequest request)
     {
         _logger.LogDebug("Executing DynamicControllerFactor for {request}", request);
         var report = await _reportService.GetAsync(request.ReportId) ?? throw new ArgumentException(nameof(request.ReportId));
 
-        var compilation = await LoadControllerTypeAsync(report.Path);
+        var compilation = await LoadControllerTypeAsync(report.Path, request.Controller);
         
         if (compilation.Type is null)
         {
-            return new NotFoundResult();
+            return (new NotFoundResult(), null);
         }
 
-        var controllerInstance = compilation.Type.CreateControllerInstance(compilation.ControllerAssembly, _serviceProvider);
+        var controllerInstance = compilation.Type.CreateInstance<ControllerBase>(compilation.ControllerAssembly, _serviceProvider);
   
         if (controllerInstance is not ControllerBase cb)
         {
-            return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+            return (new StatusCodeResult(StatusCodes.Status500InternalServerError), null);
         }
 
         var actionResult = await InvokeControllerActionAsync(compilation.Type, compilation.ControllerAssembly, cb, request);
@@ -69,15 +68,13 @@ internal sealed class DynamicControllerFactory : IDynamicControllerFactory
         return actionResult;
     }
 
-    private async Task<(TypeInfo? Type, Assembly ControllerAssembly)> LoadControllerTypeAsync(string controllerPath)
+    private async Task<(TypeInfo? Type, Assembly ControllerAssembly)> LoadControllerTypeAsync(string controllerPath, string? controller)
     {
-        // TODO: should not be hardcoded & support multiple files.
-        var fileContent = await File.ReadAllTextAsync($"{controllerPath}/ReportController.cs");
-        var compilation = _compilationServices.Compile(controllerPath, fileContent);
+        var compilation = await _compilationServices.CompileAsync(controllerPath, controller);
         return (compilation.CompiledType, compilation.Assembly);
     }
 
-    private async Task<IActionResult> InvokeControllerActionAsync(TypeInfo type, Assembly assembly, ControllerBase instance, ControllerFactoryRequest request)
+    private async Task<(IActionResult? Result, ActionContext ActionContext)> InvokeControllerActionAsync(TypeInfo type, Assembly assembly, ControllerBase instance, ControllerFactoryRequest request)
     {    
         var assemblyPart = new AssemblyPart(assembly);
 
@@ -122,10 +119,10 @@ internal sealed class DynamicControllerFactory : IDynamicControllerFactory
             {
                 if (response is ViewResult view)
                 {
-                    return view;
+                    return (view, instance.ControllerContext);
                 }
 
-                return new OkObjectResult(response);
+                return (new OkObjectResult(response), instance.ControllerContext);
             }
         }
         catch
@@ -139,6 +136,6 @@ internal sealed class DynamicControllerFactory : IDynamicControllerFactory
             StaticDescripterChangeProvider.Instance.Refresh();
         }
 
-        return new NotFoundResult();
+        return (new NotFoundResult(), instance.ControllerContext);
     }
 }

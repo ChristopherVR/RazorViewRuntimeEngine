@@ -78,19 +78,15 @@ internal sealed class ModelBindingService : IModelBindingService
         // Invoke the action method with the bound parameters
         var actionResult = actionDescriptor.MethodInfo.Invoke(instance, modelBindingResult.Select(x => x.Model).ToArray());
 
-        //if (actionResult is Task methodTask)
-        //{
-        //    await methodTask.ConfigureAwait(false);
+        if (actionResult is Task methodTask && !actionDescriptor.MethodInfo.ReturnType.IsGenericType)
+        {
+            await methodTask.ConfigureAwait(false);
 
-        //    if (!actionDescriptor.MethodInfo.ReturnType.IsGenericType)
-        //    {
-        //        return null;
-        //    }
-        //}
+            return null;
+        }
 
         var response = actionResult switch
         {
-            // TODO: Cater for void responses.
             Task d => await (dynamic)d,
             _ => actionResult,
         };

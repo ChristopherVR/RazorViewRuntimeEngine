@@ -14,13 +14,15 @@ internal static class TypeInfoExtensions
     /// <param name="assembly">The <see cref="Assembly"/> that will be used to determine if the <see cref="Type"/> exists within it.</param>
     /// <param name="token">Cancellation token that can be passed as the parameter value.</param>
     /// <returns></returns>
-    internal static object CreateControllerInstance(this TypeInfo type, Assembly assembly, IServiceProvider serviceProvider)
+#pragma warning disable IDE1006 // Naming Styles
+    internal static T CreateInstance<T>(this TypeInfo type, Assembly assembly, IServiceProvider serviceProvider) where T : class
+#pragma warning restore IDE1006 // Naming Styles
     {
         var instance = ActivatorUtilities.GetServiceOrCreateInstance(serviceProvider, type);
 
         if (instance is not null)
         {
-            return instance;
+            return (T)instance;
         }
 
         var paramters = type
@@ -32,7 +34,7 @@ internal static class TypeInfoExtensions
 
         instance = type.GetConstructors().First().Invoke(paramters);
 
-        return instance;
+        return (T)instance;
     }
 
     private static object? GetParamaterValue(IServiceProvider serviceProvider, ParameterInfo propInfo, Assembly assembly)

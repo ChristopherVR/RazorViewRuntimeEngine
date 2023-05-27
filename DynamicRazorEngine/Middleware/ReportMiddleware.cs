@@ -21,14 +21,7 @@ public static class ApplicationBuilderExtensions
         .AddSingleton<IDynamicControllerFactory, DynamicControllerFactory>()
         .AddSingleton<IActionDescriptorChangeProvider>(StaticDescripterChangeProvider.Instance)
         .AddSingleton(StaticDescripterChangeProvider.Instance)
-        .AddSingleton<IModelBindingService, ModelBindingService>()
-        .Configure<RazorViewEngineOptions>(o =>
-        {
-            //o.ViewLocationFormats.Add("/wwwroot/Reports/{0}/{1}.cshtml");
-            //o.ViewLocationFormats.Add("/wwwroot/Reports/{0}/{1}");
-            //o.ViewLocationFormats.Add("/wwwroot/Reports/{0}");
-            //o.ViewLocationFormats.Add("/wwwroot/Reports/{0}.cshtml");
-        });
+        .AddSingleton<IModelBindingService, ModelBindingService>();
 
     public static IApplicationBuilder UseDynamicReporting(this WebApplication app) => UseDynamicReporting(app, config: null);
 
@@ -37,34 +30,36 @@ public static class ApplicationBuilderExtensions
         var cfg = new ReportingConfig()
         {
             BasePath = "wwwroot/reports",
-            RoutePattern = "/reports/{reportId:int}/{action}",
+            RoutePattern = "/reports/{reportId:int}/{action}/{controller:?}",
             BaseIndexRoutePattern = "/reports/{reportId:int}",
             HttpMethods = new[] { "PATCH", "POST", "GET", "DELETE", "PUT" },
         };
 
         config?.Invoke(cfg);
         app.MapGet(cfg.BaseIndexRoutePattern, async (z) => await RenderReportViewAsync(z, app, cfg));
-        
+
         app.MapMethods(cfg.RoutePattern, cfg.HttpMethods, async (context) => await HandleReportActionsAsync(context, app, cfg));
         return app;
     }
 
     private static async Task HandleReportActionsAsync(HttpContext context, IApplicationBuilder app, ReportingConfig config)
     {
-        if (!context.Request.RouteValues.TryGetValue("reportId", out var id) 
+        if (!context.Request.RouteValues.TryGetValue("reportId", out var id)
             || !context.Request.RouteValues.TryGetValue("action", out var action))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
+        _ = context.Request.RouteValues.TryGetValue("controller", out var controller);
+
         var factory = app.ApplicationServices.GetService<IDynamicControllerFactory>()!;
 
-        var response = await factory.ExecuteAsync(new(long.Parse(id!.ToString()!), action!.ToString()!, null, null));
+        var (result, actionContext) = await factory.ExecuteAsync(new(long.Parse(id!.ToString()!), action!.ToString()!, controller?.ToString(), null));
 
-        if (response is not null)
+        if (result is not null)
         {
-            await response.ExecuteResultAsync(new()
+            await result.ExecuteResultAsync(actionContext ?? new()
             {
                 HttpContext = context,
                 ActionDescriptor = new(),

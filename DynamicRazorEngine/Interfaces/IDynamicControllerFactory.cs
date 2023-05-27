@@ -5,5 +5,5 @@ namespace DynamicRazorEngine.Interfaces;
 
 internal interface IDynamicControllerFactory 
 {
-    Task<IActionResult?> ExecuteAsync(ControllerFactoryRequest request);
+    Task<(IActionResult? Result, ActionContext? ActionContext)> ExecuteAsync(ControllerFactoryRequest request);
 }

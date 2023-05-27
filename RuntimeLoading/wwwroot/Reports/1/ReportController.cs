@@ -5,24 +5,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RuntimeLoading.Services;
 using System.Linq;
+using RuntimeLoading.wwwroot.Reports.ReportNameHere.Models;
 // Namespace can be anything. Preferably unique to prevent issues with other reports containing the same controller & namespace.
 namespace RuntimeLoading.wwwroot.Reports.ReportNameHere;
 
 public class User { public int Id {get; set;} public string Name {get; set; }}
-// Model can be called anything. This whole class is just to demonstrate that the controller will work like a normal MVC project.
-public class CreateEditViewModel
-{
-    public string Keyword {get; set;}
-    public string HalloWorld { get; set; }
-    public System.Collections.Generic.List<User> Users {get; set;} = new();
-    public long ReportId { get; set; } = 1;
-    public bool Created { get; set; }
-    public bool Deleted { get; set; }
-    public bool Updated { get; set; }
-    public CreateEditViewModel(){ }
-    public CreateEditViewModel(int id) => ReportId = id;
-}
-
 
 // Controller can be called anything. This whole class is just to demonstrate that the controller will work like a normal MVC project.
 public class ReportController : Controller
@@ -68,7 +55,7 @@ public class ReportController : Controller
     }
 
     [HttpPost]
-    public async System.Threading.Tasks.Task<IActionResult> Search(CreateEditViewModel vm)
+    public IActionResult Search(CreateEditViewModel vm)
     {
         var users = Enumerable.Range(0, 100)
         .Select(y => new User
