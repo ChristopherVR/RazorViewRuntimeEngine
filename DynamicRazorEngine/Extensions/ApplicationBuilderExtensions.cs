@@ -22,11 +22,6 @@ public static class ApplicationBuilderExtensions
         .AddSingleton(StaticDescripterChangeProvider.Instance)
         .AddSingleton<IModelBindingService, ModelBindingService>();
 
-        //if (!services.OfType<IViewCompilerProvider>().Any())
-        //{
-        //    throw new Exception("");
-        //}
-
         return services;
     }
 
@@ -37,11 +32,11 @@ public static class ApplicationBuilderExtensions
         var cfg = DefaultReportConfiguration.Default();
 
         config?.Invoke(cfg);
-        app.MapMethods(cfg.RoutePattern, cfg.HttpMethods, async (context) => await HandleReportActionsAsync(context, app, cfg));
+        app.MapMethods(cfg.RoutePattern, cfg.HttpMethods, async (context) => await HandleReportActionsAsync(context, app));
         return app;
     }
 
-    private static async Task HandleReportActionsAsync(HttpContext context, IApplicationBuilder app, ReportingConfig config)
+    private static async Task HandleReportActionsAsync(HttpContext context, IApplicationBuilder app)
     {
         if (!context.Request.RouteValues.TryGetValue("reportId", out var id))
         {

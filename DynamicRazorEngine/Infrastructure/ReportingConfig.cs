@@ -1,6 +1,6 @@
 ﻿namespace DynamicRazorEngine.Factories;
 
-public readonly record struct ReportingConfig
+public sealed class ReportingConfig
 {
     public ReportingConfig() {}
 

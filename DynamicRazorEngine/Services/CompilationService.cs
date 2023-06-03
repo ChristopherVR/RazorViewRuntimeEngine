@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.Extensions.Options;
 using System.Dynamic;
 using System.Reflection;
 
@@ -16,8 +17,9 @@ internal sealed class CompilationService
     private readonly ApplicationPartManager _partManager;
     private readonly CSharpCompilationOptions _compilationOptions;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ReportingConfig _reportingConfig;
 
-    public CompilationService(ApplicationPartManager partManager, IHttpContextAccessor httpContextAccessor)
+    public CompilationService(ApplicationPartManager partManager, IHttpContextAccessor httpContextAccessor, IOptions<ReportingConfig>? reportingConfigOptions)
     {
         _partManager = partManager ?? throw new ArgumentNullException(nameof(httpContextAccessor));
         _compilationOptions = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
@@ -25,6 +27,8 @@ internal sealed class CompilationService
             .WithNullableContextOptions(NullableContextOptions.Enable)
             .WithOptimizationLevel(OptimizationLevel.Release);
         _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
+
+        _reportingConfig = reportingConfigOptions?.Value ?? DefaultReportConfiguration.Default();
     }
 
     /// <summary>
@@ -33,15 +37,12 @@ internal sealed class CompilationService
     /// <param name="report"></param>
     /// <param name="config"></param>
     /// <returns>Returns a <see cref="CompilationResult"/></returns>
-    public async Task<CompilationResult> CompileAsync(Report report, Action<ReportingConfig>? config = null)
+    public async Task<CompilationResult> CompileAsync(Report report)
     {
-        var cfg = DefaultReportConfiguration.Default();
-        config?.Invoke(cfg);
-
-        var path = cfg.BasePath + report.RelativePath;
+        var path = _reportingConfig.BasePath + report.RelativePath;
 
         var assemblyPath = Directory.GetFiles(path, "*.dll", SearchOption.AllDirectories).FirstOrDefault();
-        var cachedAssembly = LoadCachedAssembly(assemblyPath, report.CacheDuration ?? cfg.DefaultRuntimeCache, report.MainController);
+        var cachedAssembly = LoadCachedAssembly(assemblyPath, report.CacheDuration ?? _reportingConfig.DefaultRuntimeCache, report.MainController);
 
         if (cachedAssembly is not null)
         {
