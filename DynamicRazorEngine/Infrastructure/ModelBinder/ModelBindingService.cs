@@ -1,6 +1,6 @@
-﻿using DynamicRazorEngine.Interfaces;
+﻿using DynamicRazorEngine.Extensions;
+using DynamicRazorEngine.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Options;
 
@@ -25,20 +25,20 @@ internal sealed class ModelBindingService : IModelBindingService
         _metadataProvider = metadataProvider ?? throw new ArgumentNullException(nameof(metadataProvider));
     }
 
-    public async Task<object?> BindControllerModelAsync(ControllerBase instance, ControllerContext controllerContext, ControllerActionDescriptor actionDescriptor)
+    public async Task<IList<ModelBindingResult>> BindControllerModelAsync(ControllerBase instance, ControllerContext controllerContext, Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor actionDescriptor)
         => await BindModelAsync(instance, controllerContext, actionDescriptor);
 
-    public async Task<object?> BindControllerModelAsync(ControllerBase instance, ActionContext actionContext)
+    public async Task<IList<ModelBindingResult>> BindControllerModelAsync(ControllerBase instance, ActionContext actionContext)
     {
         var controllerContext = new ControllerContext(actionContext)
         {
             ValueProviderFactories = _options.ValueProviderFactories,
         };
 
-        return await BindModelAsync(instance, controllerContext, (ControllerActionDescriptor)actionContext.ActionDescriptor);
+        return await BindModelAsync(instance, controllerContext, (Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor)actionContext.ActionDescriptor);
     }
 
-    private async Task<object?> BindModelAsync(ControllerBase instance, ControllerContext controllerContext, ControllerActionDescriptor actionDescriptor)
+    private async Task<IList<ModelBindingResult>> BindModelAsync(ControllerBase instance, ControllerContext controllerContext, Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor actionDescriptor)
     {
         var valueProvider = await CompositeValueProvider.CreateAsync(controllerContext);
 
@@ -75,22 +75,6 @@ internal sealed class ModelBindingService : IModelBindingService
             modelBindingResult.Add(model);
         }
 
-        // Invoke the action method with the bound parameters
-        var actionResult = actionDescriptor.MethodInfo.Invoke(instance, modelBindingResult.Select(x => x.Model).ToArray());
-
-        if (actionResult is Task methodTask && !actionDescriptor.MethodInfo.ReturnType.IsGenericType)
-        {
-            await methodTask.ConfigureAwait(false);
-
-            return null;
-        }
-
-        var response = actionResult switch
-        {
-            Task d => await (dynamic)d,
-            _ => actionResult,
-        };
-
-        return response;
+        return modelBindingResult;
     }
 }

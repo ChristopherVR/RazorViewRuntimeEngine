@@ -1,12 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc.Controllers;
+﻿using DynamicRazorEngine.Infrastructure;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
-namespace DynamicRazorEngine.Infrastructure.ModelBinder;
+namespace DynamicRazorEngine.Extensions;
 
-internal static class ParameterBindingInfo
+internal static class ControllerActionDescriptorExtensions
 {
     internal static BinderItem[]? GetParameterBindingInfo(
-        this ControllerActionDescriptor actionDescriptor,
+        this Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor actionDescriptor,
         IModelBinderFactory modelBinderFactory,
         IModelMetadataProvider modelMetadataProvider)
     {
@@ -46,7 +47,7 @@ internal static class ParameterBindingInfo
                 CacheToken = parameter,
             });
 
-            parameterBindingInfo[i] = new BinderItem(binder, metadata);
+            parameterBindingInfo[i] = new(binder, metadata);
         }
 
         return parameterBindingInfo;

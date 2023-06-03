@@ -6,15 +6,11 @@ using Microsoft.AspNetCore.Mvc;
 using RuntimeLoading.Services;
 using System.Linq;
 using RuntimeLoading.wwwroot.Reports.ReportNameHere.Models;
-// Namespace can be anything. Preferably unique to prevent issues with other reports containing the same controller & namespace.
 namespace RuntimeLoading.wwwroot.Reports.ReportNameHere;
 
-public class User { public int Id {get; set;} public string Name {get; set; }}
-
-// Controller can be called anything. This whole class is just to demonstrate that the controller will work like a normal MVC project.
-public class ReportController : Controller
+public class ReportController : DynamicRazorEngine.Models.ReportControllerBase
 {
-    private const string CreateEditViewPath = "~/wwwroot/Reports/1/CreateEdit.cshtml";
+    private const string CreateEditViewPath = "~/wwwroot/Reports/{0}/CreateEdit.cshtml";
     private readonly IExampleService _exampleService;
 
     public ReportController(IExampleService exampleService) 
@@ -23,7 +19,7 @@ public class ReportController : Controller
     [HttpGet]
     public ActionResult Index()
     {
-        return View();
+        return View($"~/wwwroot/Reports/{ReportId}/Index.cshtml", ReportId);
     }
 
     [HttpGet]
@@ -31,19 +27,19 @@ public class ReportController : Controller
     {
         var vm = new CreateEditViewModel()
         {
-            HalloWorld = await _exampleService.GetHelloWorldAsync(),
+            HalloWorld = await _exampleService.GetHelloWorldAsync()!,
         };
 
-        return View(Url.Content(CreateEditViewPath), new CreateEditViewModel());
+        return View(Url.Content(string.Format(CreateEditViewPath, ReportId)), vm);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async System.Threading.Tasks.Task<IActionResult> Create(CreateEditViewModel vm)
     {
-        vm.HalloWorld = await _exampleService.GetHelloWorldAsync();
-        vm.Created = true; // Demonstrating changes.
-        return View(Url.Content(CreateEditViewPath), vm);
+        vm.HalloWorld = await _exampleService.GetHelloWorldAsync()!;
+        vm.Created = true;
+        return View(Url.Content(string.Format(CreateEditViewPath, ReportId)), vm);
     }
 
     [HttpGet]
@@ -51,7 +47,7 @@ public class ReportController : Controller
     {
         var vm = new CreateEditViewModel(id);
         vm.HalloWorld = await _exampleService.GetHelloWorldAsync();
-        return View(Url.Content(CreateEditViewPath), vm);
+        return View(Url.Content(string.Format(CreateEditViewPath, ReportId)), vm);
     }
 
     [HttpPost]
@@ -63,10 +59,10 @@ public class ReportController : Controller
             Id = y,
             Name = $"Unique name - {y}",
         })
-        .Where(y => string.IsNullOrWhiteSpace(vm.Keyword) ? true : y.Name.Contains(vm.Keyword, StringComparison.OrdinalIgnoreCase))
+        .Where(y => string.IsNullOrWhiteSpace(vm.Keyword) ? true : y.Name!.Contains(vm.Keyword!, StringComparison.OrdinalIgnoreCase))
         .ToList();
         vm.Users = users;
-        return View(Url.Content(CreateEditViewPath), vm);
+        return View(Url.Content(string.Format(CreateEditViewPath, ReportId)), vm);
     }
 
     [HttpPost]
@@ -74,16 +70,16 @@ public class ReportController : Controller
     public async System.Threading.Tasks.Task<IActionResult> Edit(CreateEditViewModel vm)
     {
         vm.HalloWorld = await _exampleService.GetHelloWorldAsync();
-        vm.Updated = true; // Demonstrating changes.
-        return View(Url.Content(CreateEditViewPath), vm);
+        vm.Updated = true;
+        return View(Url.Content(string.Format(CreateEditViewPath, ReportId)), vm);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async System.Threading.Tasks.Task<IActionResult> Delete(CreateEditViewModel vm)
+    public async System.Threading.Tasks.Task<IActionResult> Delete(CreateEditViewModel vm, [FromServices] IExampleService exampleService)
     {
         vm.Deleted = true;
-        vm.HalloWorld = await _exampleService.GetHelloWorldAsync();
-        return View(Url.Content(CreateEditViewPath), vm);
+        vm.HalloWorld = await exampleService.GetHelloWorldAsync();
+        return View(Url.Content(string.Format(CreateEditViewPath, ReportId)), vm);
     }
 }

@@ -5,19 +5,19 @@ namespace DynamicRazorEngine.Provider;
 
 internal sealed class StaticDescripterChangeProvider : IActionDescriptorChangeProvider
 {
-    public static StaticDescripterChangeProvider Instance { get; } = new StaticDescripterChangeProvider();
+    internal static StaticDescripterChangeProvider Instance { get; } = new();
 
-    public CancellationTokenSource? TokenSource { get; private set; }
+    internal CancellationTokenSource? TokenSource { get; private set; }
 
-    public bool HasChanged { get; set; }
+    internal bool HasChanged { get; set; }
 
     public IChangeToken GetChangeToken()
     {
-        TokenSource = new CancellationTokenSource();
+        TokenSource = new();
         return new CancellationChangeToken(TokenSource.Token);
     }
 
-    public void Refresh()
+    internal void Refresh()
     {
         HasChanged = true;
         TokenSource?.Cancel();

@@ -1,7 +1,8 @@
-﻿@{
+﻿
+@{
     Layout = "/Pages/Shared/_Layout.cshtml";
 
-    var url = Url.Content("~/reports/1/create");
+    var url = Url.Content($"~/reports/{Model}/create");
 }
 
 <html>
@@ -11,4 +12,4 @@
 </body>
 </html>
 
-<script src="~/Reports/1/index.js"></script>
+<script src="@($"/Reports/{Model}/index.js")" asp-append-version="true"></script>

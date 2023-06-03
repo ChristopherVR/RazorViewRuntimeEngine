@@ -1,4 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using DynamicRazorEngine.Extensions;
+using DynamicRazorEngine.Factories;
+using DynamicRazorEngine.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.CodeAnalysis;
@@ -8,22 +11,46 @@ using System.Reflection;
 
 namespace DynamicRazorEngine.Services;
 
-internal sealed class CompilationServices
+internal sealed class CompilationService
 {
     private readonly ApplicationPartManager _partManager;
     private readonly CSharpCompilationOptions _compilationOptions;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public CompilationServices(ApplicationPartManager partManager)
+    public CompilationService(ApplicationPartManager partManager, IHttpContextAccessor httpContextAccessor)
     {
-        _partManager = partManager;
-        _compilationOptions = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
+        _partManager = partManager ?? throw new ArgumentNullException(nameof(httpContextAccessor));
+        _compilationOptions = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+            .WithAllowUnsafe(true)
+            .WithNullableContextOptions(NullableContextOptions.Enable)
+            .WithOptimizationLevel(OptimizationLevel.Release);
+        _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
     }
 
-    public async Task<CompilationResult> CompileAsync(string filePath, string? controller)
+    /// <summary>
+    /// Compiles a report's Source code into a <see cref="Assembly"/> object.
+    /// </summary>
+    /// <param name="report"></param>
+    /// <param name="config"></param>
+    /// <returns>Returns a <see cref="CompilationResult"/></returns>
+    public async Task<CompilationResult> CompileAsync(Report report, Action<ReportingConfig>? config = null)
     {
+        var cfg = DefaultReportConfiguration.Default();
+        config?.Invoke(cfg);
+
+        var path = cfg.BasePath + report.RelativePath;
+
+        var assemblyPath = Directory.GetFiles(path, "*.dll", SearchOption.AllDirectories).FirstOrDefault();
+        var cachedAssembly = LoadCachedAssembly(assemblyPath, report.CacheDuration ?? cfg.DefaultRuntimeCache, report.MainController);
+
+        if (cachedAssembly is not null)
+        {
+            return cachedAssembly;
+        }
+
         var syntaxTrees = new List<SyntaxTree>();
 
-        foreach (var file in Directory.EnumerateFiles(filePath, "*.cs", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(path, "*.cs", SearchOption.AllDirectories))
         {
             string contents = await File.ReadAllTextAsync(file);
             syntaxTrees.Add(CSharpSyntaxTree.ParseText(contents));
@@ -35,17 +62,9 @@ internal sealed class CompilationServices
             MetadataReference.CreateFromFile(typeof(Console).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Task<>).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Task).Assembly.Location),
-            // Default netstandard assembly is required.
             MetadataReference.CreateFromFile(Assembly.Load("netstandard, Version=2.0.0.0").Location),
-            //MetadataReference.CreateFromFile(Assembly.Load("netstandard, Version=2.0.0.0").Location),
             MetadataReference.CreateFromFile(Assembly.Load("netstandard, Version=2.1.0.0").Location),
-            MetadataReference.CreateFromFile(Assembly.Load("System.Runtime, Version=7.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a").Location),
-            MetadataReference.CreateFromFile(Assembly.Load("Microsoft.CSharp, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a").Location),
-            MetadataReference.CreateFromFile(Assembly.Load("Microsoft.Extensions.Primitives, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60").Location),
-            MetadataReference.CreateFromFile(Assembly.Load("System.Linq, Version=7.0.0.0").Location),
             MetadataReference.CreateFromFile(typeof(ExpandoObject).Assembly.Location),
-            MetadataReference.CreateFromFile(Assembly.Load("Microsoft.AspNetCore.Mvc.Abstractions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60").Location),
-            MetadataReference.CreateFromFile(Assembly.Load("System.Collections, Version=7.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a").Location),
             MetadataReference.CreateFromFile(Assembly.GetCallingAssembly().Location),
             MetadataReference.CreateFromFile(Assembly.GetExecutingAssembly().Location),
             MetadataReference.CreateFromFile(typeof(HttpPostAttribute).Assembly.Location),
@@ -69,7 +88,13 @@ internal sealed class CompilationServices
             references.Add(metadataReference);
         }
 
-        var compilation = CSharpCompilation.Create("Dynamic_Controller_Assembly")
+        foreach(var domain in AppDomain.CurrentDomain.GetAssemblies().Where(y => !string.IsNullOrWhiteSpace(y.Location)))
+        {
+            var metadataReference = MetadataReference.CreateFromFile(domain.Location);
+            references.Add(metadataReference);
+        }
+
+        var compilation = CSharpCompilation.Create($"Dynamic_Controller_Assembly_{report.Id}")
             .WithOptions(_compilationOptions)
             .AddSyntaxTrees(syntaxTrees)
             .AddReferences(references);
@@ -83,39 +108,76 @@ internal sealed class CompilationServices
             
             return new()
             {
-                Errors = failures.Select(x => x.GetMessage()),
+                Errors = failures.Select(x => x.GetMessage(_httpContextAccessor.HttpContext?.GetFormatProvider())),
                 Assembly = null!,
             };
         }
         
         ms.Seek(0, SeekOrigin.Begin);
-        var assembly = Assembly.Load(ms.ToArray());
-        var type = assembly
-            .GetExportedTypes()
-            .FirstOrDefault(y => y.IsAssignableTo(typeof(ControllerBase)) && y.Name == (!string.IsNullOrWhiteSpace(controller) ? $"{controller}Controller" : y.Name));
+
+        byte[] assemblyBytes = ms.ToArray();
+        var assembly = Assembly.Load(assemblyBytes);
+        Directory.CreateDirectory($"{path}\\Assembly");
+        await File.WriteAllBytesAsync($"{path}\\Assembly\\CompiledReport.dll", assemblyBytes);
+        var type = GetControllerTypeInfo(assembly, report.MainController);
         
         return new() 
         { 
             Success = true,
-            CompiledType = type?.GetTypeInfo(),
+            MainControllerType = type?.GetTypeInfo(),
             Assembly = assembly,
         };
     }
 
-    private IEnumerable<string> GetLibraries()
-    {
-        return _partManager.ApplicationParts
+    private IEnumerable<string> GetLibraries() 
+        => _partManager.ApplicationParts
             .OfType<AssemblyPart>()
             .Where(x => !string.IsNullOrWhiteSpace(x.Assembly.Location))
             .Select(x => x.Assembly.Location)
             .Distinct();
+
+    private static CompilationResult? LoadCachedAssembly(string? assemblyPath, TimeSpan cacheDuration, string? controller)
+    {
+        if (!File.Exists(assemblyPath))
+        {
+            return null;
+        }
+
+        if (CheckIfFileIsOutdated(assemblyPath, cacheDuration))
+        {
+            try {  File.Delete(assemblyPath); } catch { }
+            return null;
+        }
+
+        try
+        {
+            var assembly = Assembly.LoadFrom(assemblyPath);
+
+            return new()
+            {
+                Assembly = assembly,
+                Success = true,
+                MainControllerType = GetControllerTypeInfo(assembly, controller),
+            };
+        }
+        catch
+        {
+            return null;
+        }
     }
+
+    private static bool CheckIfFileIsOutdated(string assemblyPath, TimeSpan cacheDuration)
+        => File.GetCreationTimeUtc(assemblyPath).Add(cacheDuration) < DateTime.UtcNow;
+
+    private static System.Reflection.TypeInfo? GetControllerTypeInfo(Assembly assembly, string? name)
+        => assembly.GetExportedTypes().FirstOrDefault(y => y.IsAssignableTo(typeof(ControllerBase)) && (name is null ? true : y.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase)))?.GetTypeInfo();
+
 }
 
 public class CompilationResult
 {
     public bool Success { get; set; }
     public IEnumerable<string>? Errors { get; set; }
-    public System.Reflection.TypeInfo? CompiledType { get; set; }
+    public System.Reflection.TypeInfo? MainControllerType { get; set; }
     public required Assembly Assembly { get; set; }
 }

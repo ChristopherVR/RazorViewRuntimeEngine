@@ -1,6 +1,6 @@
 ﻿using DynamicRazorEngine.Models;
 
-namespace DynamicRazorEngine.Services;
+namespace DynamicRazorEngine.Interfaces;
 
 /// <summary>
 /// The markup interface that needs to be registered by the application to retrieve a report's details.

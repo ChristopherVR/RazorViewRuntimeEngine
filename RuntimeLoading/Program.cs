@@ -1,10 +1,6 @@
-using DynamicRazorEngine.Factories;
-using DynamicRazorEngine.Middleware;
-using DynamicRazorEngine.Services;
+using DynamicRazorEngine.Extensions;
+using DynamicRazorEngine.Interfaces;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
-using Microsoft.AspNetCore.Mvc.Razor;
-using Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation;
-using Microsoft.Extensions.Configuration;
 using RuntimeLoading.Services;
 
 namespace RuntimeLoading;
@@ -17,14 +13,6 @@ public class Program
 
         // Add services to the container.
         builder.Services.AddRazorPages().AddRazorRuntimeCompilation();
-
- //       builder.Services.Configure<MvcRazorRuntimeCompilationOptions>(opts =>
-  //  opts.FileProviders.Add(new DynamicFileProvider()));
-        //.AddRazorRuntimeCompilation(c =>
-        //    {
-        //        c.FileProviders.Add(new DynamicFileProvider());
-        //    })
-        //    .AddControllersAsServices();
 
         builder.Services.AddLogging();
         builder.Services.AddHttpContextAccessor();

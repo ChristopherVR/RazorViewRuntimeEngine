@@ -4,72 +4,67 @@
 @{
     Layout = "/Pages/Shared/_Layout.cshtml";
     var route = Url.Content($"~/reports/{Model.ReportId}");
-
-    var pieterSielie = Model.HalloWorld + "test";
 }
 
-    <div>Hello this is the Creat Edit Page for Report - @Model.ReportId</div>
+<div>Hello this is the Creat Edit Page for Report - @Model.ReportId</div>
 
-    <span>@Model.HalloWorld</span>
-    <div>
-    <form class="mt-2 mb-2" method="post" action="@($"{route}/delete")"">
-        <input type="hidden" name="reportId" value="@Model.ReportId" />
-        <button class="btn btn-primary" type="submit">Delete</button>
+<span>This is a property from the Model - @Model.HalloWorld</span>
+<div>
+<form class="mt-2 mb-2" method="post" action="@($"{route}/delete")"">
+    <input type="hidden" name="reportId" value="@Model.ReportId" />
+    <button class="btn btn-primary" type="submit">Delete</button>
 
-    @if (Model.Deleted)
-    {
-        <span>Model was deleted!</span>
-    }
-    </form>
+@if (Model.Deleted)
+{
+    <span>Model was deleted!</span>
+}
+</form>
 
+<form class="mt-2 mb-2" method="post" action="@($"{route}/create")">
+    <input type="hidden" name="reportId" value="@Model.ReportId" />
 
-    <form class="mt-2 mb-2" method="post" action="@($"{route}/create")">
-        <input type="hidden" name="reportId" value="@Model.ReportId" />
+    <button class="btn btn-primary" type="submit">Create</button>
 
-        <button class="btn btn-primary" type="submit">Create</button>
+@if (Model.Created)
+{
+    <span>Model was created!</span>
+}
+</form>
 
-    @if (Model.Created)
-    {
-         <span>Model was created!</span>
-    }
-    </form>
+<form class="mt-2 mb-2" method="post" action="@($"{route}/edit")">
+    <input type="hidden" name="reportId" value="@Model.ReportId" />
+    <button class="btn btn-primary" type="submit">Update</button>
 
-    <form class="mt-2 mb-2" method="post" action="@($"{route}/edit")">
-        <input type="hidden" name="reportId" value="@Model.ReportId" />
-        <button class="btn btn-primary" type="submit">Update</button>
+@if(Model.Updated)
+{
+    <span>Model was updated!</span>
+}
+</form>
 
-    @if(Model.Updated)
-    {
-        <span>Model was updated!</span>
-    }
-    </form>
+<form class="mt-2 mb-2" method="post" action="@($"{route}/search")">
+    <input type="hidden" name="reportId" value="@Model.ReportId" />
+    <input type="text" name="keyword" value="@Model.Keyword" />
+    <button class="btn btn-primary" type="submit">Search</button>
+</form>
 
-
-
-    <form class="mt-2 mb-2" method="post" action="@($"{route}/search")">
-        <input type="hidden" name="reportId" value="@Model.ReportId" />
-        <input type="text" name="keyword" value="@Model.Keyword" />
-        <button class="btn btn-primary" type="submit">Search</button>
-    </form>
-
-    @if(Model.Users.Count > 0) 
-    {
-        <table class="table table-bordered">
-            <thead>
-                <th>Id</th>
-                <th>Name</th>
-            </thead>
-
-            <tbody>
-                @foreach(var user in Model.Users) {
-                    <tr>
-                        <td>@user.Id</td>
-                        <td>@user.Name</td>
-                     </tr>
-                }
-            </tbody>
-        </table>
-    }
+@if(Model.Users.Count > 0) 
+{
+    <table class="table table-bordered">
+        <thead>
+            <th>Id</th>
+            <th>Name</th>
+        </thead>
+        <tbody>
+        @foreach(var user in Model.Users) 
+        {
+        <tr>
+            <td>@user.Id</td>
+            <td>@user.Name</td>
+        </tr>
+        }
+        </tbody>
+    </table>
+}
 
 </div>
 </html>

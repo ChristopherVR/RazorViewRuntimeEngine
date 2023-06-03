@@ -1,2 +1,2 @@
 ﻿namespace DynamicRazorEngine.Models;
-public sealed record Report(long Id, string Path, string? MainView, bool LoadFromDll, bool CacheCompilation, TimeSpan? CacheDuration = default);
+public sealed record Report(long Id, string RelativePath, string? MainView, string? MainController, bool CacheCompilation, TimeSpan? CacheDuration = default);

@@ -1,7 +1,7 @@
 ﻿using DynamicRazorEngine.Extensions;
+using DynamicRazorEngine.Factories;
 using DynamicRazorEngine.Interfaces;
 using DynamicRazorEngine.Provider;
-using DynamicRazorEngine.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
@@ -11,23 +11,23 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
 
-namespace DynamicRazorEngine.Factories;
+namespace DynamicRazorEngine.Services;
 
-internal sealed class DynamicControllerFactory : IDynamicControllerFactory
+internal sealed class DynamicReportService : IDynamicReportService
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly CompilationServices _compilationServices;
-    private readonly ILogger<DynamicControllerFactory> _logger;
+    private readonly CompilationService _compilationServices;
+    private readonly ILogger<DynamicReportService> _logger;
     private readonly IActionDescriptorCollectionProvider _actionDescriptorCollectionProvider;
     private readonly ApplicationPartManager _applicationPartManager;
     private readonly IReportService _reportService;
     private readonly IModelBindingService _modelBindingService;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public DynamicControllerFactory(
+    public DynamicReportService(
         IServiceProvider serviceProvider,
-        CompilationServices compilationServices,
-        ILogger<DynamicControllerFactory> logger,
+        CompilationService compilationServices,
+        ILogger<DynamicReportService> logger,
         IActionDescriptorCollectionProvider actionDescriptorCollectionProvider,
         ApplicationPartManager applicationPartManager,
         IReportService reportService,
@@ -43,39 +43,33 @@ internal sealed class DynamicControllerFactory : IDynamicControllerFactory
         _modelBindingService = modelBindingService ?? throw new ArgumentNullException(nameof(modelBindingService));
         _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
     }
-    
+
     public async Task<(IActionResult? Result, ActionContext? ActionContext)> ExecuteAsync(ControllerFactoryRequest request)
     {
         _logger.LogDebug("Executing DynamicControllerFactor for {request}", request);
         var report = await _reportService.GetAsync(request.ReportId) ?? throw new ArgumentException(nameof(request.ReportId));
 
-        var compilation = await LoadControllerTypeAsync(report.Path, request.Controller);
-        
-        if (compilation.Type is null)
-        {
-            return (new NotFoundResult(), null);
-        }
+        var compilation = await _compilationServices.CompileAsync(report);
 
-        var controllerInstance = compilation.Type.CreateInstance<ControllerBase>(compilation.ControllerAssembly, _serviceProvider);
-  
-        if (controllerInstance is not ControllerBase cb)
+        if (!compilation.Success || compilation.MainControllerType is null)
         {
             return (new StatusCodeResult(StatusCodes.Status500InternalServerError), null);
         }
 
-        var actionResult = await InvokeControllerActionAsync(compilation.Type, compilation.ControllerAssembly, cb, request);
+        var controllerInstance = compilation.MainControllerType.CreateInstance<Controller>(compilation.Assembly, _serviceProvider);
+
+        if (controllerInstance is not Controller cb)
+        {
+            return (new StatusCodeResult(StatusCodes.Status500InternalServerError), null);
+        }
+
+        var actionResult = await InvokeControllerActionAsync(compilation.MainControllerType, compilation.Assembly, cb, request);
 
         return actionResult;
     }
 
-    private async Task<(TypeInfo? Type, Assembly ControllerAssembly)> LoadControllerTypeAsync(string controllerPath, string? controller)
+    private async Task<(IActionResult? Result, ActionContext ActionContext)> InvokeControllerActionAsync(TypeInfo type, Assembly assembly, Controller instance, ControllerFactoryRequest request)
     {
-        var compilation = await _compilationServices.CompileAsync(controllerPath, controller);
-        return (compilation.CompiledType, compilation.Assembly);
-    }
-
-    private async Task<(IActionResult? Result, ActionContext ActionContext)> InvokeControllerActionAsync(TypeInfo type, Assembly assembly, ControllerBase instance, ControllerFactoryRequest request)
-    {    
         var assemblyPart = new AssemblyPart(assembly);
 
         if (!_actionDescriptorCollectionProvider.ActionDescriptors.Items
@@ -90,29 +84,43 @@ internal sealed class DynamicControllerFactory : IDynamicControllerFactory
         {
             var actionProvider = _actionDescriptorCollectionProvider.ActionDescriptors.Items
                 .OfType<ControllerActionDescriptor>()
-                .First(z => z.ActionName.Equals(request.Action, StringComparison.OrdinalIgnoreCase)
+                .First(z => (z.ActionName.Equals(request.Action, StringComparison.OrdinalIgnoreCase) || z.ActionName.StartsWith(request.Action, StringComparison.OrdinalIgnoreCase))
                 && z.ControllerTypeInfo.FullName == type.FullName
                 && z.EndpointMetadata.OfType<HttpMethodMetadata>().Any(y => y.HttpMethods.Contains(_httpContextAccessor.HttpContext!.Request.Method)));
 
-            var actionContext = new ActionContext()
+            var controllerContext = request.ControllerContext ?? new(new ActionContext()
             {
                 HttpContext = _httpContextAccessor.HttpContext!,
                 ActionDescriptor = actionProvider,
                 RouteData = _httpContextAccessor.HttpContext!.GetRouteData(),
-            };
+            });
 
-            instance.ControllerContext = request.ControllerContext ?? new ControllerContext(actionContext);
+            instance.ControllerContext = controllerContext;
 
-            var response = request.ControllerContext is not null
+            var modelBindingResult = request.ControllerContext is not null
                 ? await _modelBindingService.BindControllerModelAsync(instance, request.ControllerContext, actionProvider)
-                : await _modelBindingService.BindControllerModelAsync(instance, actionContext);
+                : await _modelBindingService.BindControllerModelAsync(instance, controllerContext);
+
+
+            // Invoke the action method with the bound parameters
+            var actionResult = actionProvider.MethodInfo.Invoke(instance, modelBindingResult.Select(x => x.Model).ToArray());
+
+            if (actionResult is Task methodTask && !actionProvider.MethodInfo.ReturnType.IsGenericType)
+            {
+                await methodTask.ConfigureAwait(false);
+
+                return (null, controllerContext);
+            }
+
+            var response = actionResult switch
+            {
+                Task d => await (dynamic)d,
+                _ => actionResult,
+            };
 
             if (instance is IDisposable dp)
             {
                 dp.Dispose();
-                _applicationPartManager.ApplicationParts.Remove(assemblyPart);
-
-                StaticDescripterChangeProvider.Instance.Refresh();
             }
 
             if (response is not null)
