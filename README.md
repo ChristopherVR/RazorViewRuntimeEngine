@@ -97,8 +97,7 @@ Register the `ReportingConfig` class using the Options pattern to configure this
 
 ![-----------------------------------------------------](https://github.com/ChristopherVR/ChristopherVR/blob/main/rainbow.png)
 
-!-- ROADMAP -->
-<h2 id="issues"> ⁉️: Known Issues</h2>
+<h2 id="issues"> ⁉️ Known Issues</h2>
 
 <p align="justify"> 
 The engine doesn't support strongly typed models in dynamic Razor Pages at the moment. As a workaround use the `dynamic` keyword for models in Razor Pages.
