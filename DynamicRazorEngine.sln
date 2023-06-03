@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamicRazorEngine", "Dynam
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{C47FF765-6557-4AEF-AEFC-C0F629B7C25C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RuntimeLoading", "RuntimeLoading\RuntimeLoading.csproj", "{AB113C2F-4C78-4849-8A83-55BC50520C1B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RuntimeLoading", "Examples\RuntimeLoading\RuntimeLoading.csproj", "{7C13BE8B-695E-49D2-B567-84736A88D72C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -19,16 +19,16 @@ Global
 		{2C334C3C-5FAB-47A6-98CD-DDA653F4D62D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2C334C3C-5FAB-47A6-98CD-DDA653F4D62D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2C334C3C-5FAB-47A6-98CD-DDA653F4D62D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{AB113C2F-4C78-4849-8A83-55BC50520C1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AB113C2F-4C78-4849-8A83-55BC50520C1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AB113C2F-4C78-4849-8A83-55BC50520C1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AB113C2F-4C78-4849-8A83-55BC50520C1B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7C13BE8B-695E-49D2-B567-84736A88D72C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7C13BE8B-695E-49D2-B567-84736A88D72C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7C13BE8B-695E-49D2-B567-84736A88D72C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7C13BE8B-695E-49D2-B567-84736A88D72C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{AB113C2F-4C78-4849-8A83-55BC50520C1B} = {C47FF765-6557-4AEF-AEFC-C0F629B7C25C}
+		{7C13BE8B-695E-49D2-B567-84736A88D72C} = {C47FF765-6557-4AEF-AEFC-C0F629B7C25C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D40A6D83-79DE-407D-9C0F-EF9C7AF74166}
