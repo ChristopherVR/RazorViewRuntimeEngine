@@ -59,9 +59,11 @@ internal static class TypeInfoExtensions
                 var instance = ActivatorUtilities.GetServiceOrCreateInstance(serviceProvider, propInfo.ParameterType);
                 return instance;
             }
+#pragma warning disable CA1031
             catch
             {
             }
+#pragma warning restore CA1031
         }
 
         if (propInfo.HasDefaultValue)
@@ -112,10 +114,12 @@ internal static class TypeInfoExtensions
                     return true;
                 }
             }
+#pragma warning disable CA1031
             catch
             {
                 value = null;
             }
+#pragma warning restore CA1031
         }
         value = null;
         return false;

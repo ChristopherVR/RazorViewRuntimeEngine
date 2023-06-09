@@ -1,6 +1,6 @@
 ﻿namespace DynamicRazorEngine.Factories;
 
-public static class DefaultReportConfiguration
+internal static class DefaultReportConfiguration
 {
     internal static ReportingConfig Default() => new()
     {

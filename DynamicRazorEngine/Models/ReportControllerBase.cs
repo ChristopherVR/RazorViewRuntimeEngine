@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
-
-namespace DynamicRazorEngine.Models;
+﻿namespace DynamicRazorEngine.Models;
 
 public abstract class ReportControllerBase : Microsoft.AspNetCore.Mvc.Controller
 {

@@ -11,19 +11,41 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DynamicRazorEngine.Extensions;
 
+
 public static class ApplicationBuilderExtensions
 {
-    public static IServiceCollection AddDynamicReportingServices(this IServiceCollection services)
-    {
-        services = services
+    private static IServiceCollection RegisterDynamicServices(this IServiceCollection services)
+        => services
         .AddSingleton<CompilationService>()
         .AddSingleton<IDynamicReportService, DynamicReportService>()
         .AddSingleton<IActionDescriptorChangeProvider>(StaticDescripterChangeProvider.Instance)
         .AddSingleton(StaticDescripterChangeProvider.Instance)
         .AddSingleton<IModelBindingService, ModelBindingService>();
 
+    public static IServiceCollection AddDynamicReportingServices<TReportingService>(this IServiceCollection services) where TReportingService : IReportService
+    {
+        var reportingType = typeof(TReportingService);
+
+        services.AddDynamicReportingServices(reportingType).RegisterDynamicServices();
+
         return services;
     }
+
+    public static IServiceCollection AddDynamicReportingServices(this IServiceCollection services, Type reportingType)
+    {
+        ArgumentNullException.ThrowIfNull(reportingType);
+        var interfaceType = typeof(IReportService);
+
+        if (reportingType.GetInterface(nameof(IReportService)) is null)
+        {
+            throw new InvalidOperationException($"The Type {reportingType.FullName} does not implement {nameof(IReportService)}");
+        }
+
+        services.AddSingleton(reportingType, interfaceType).RegisterDynamicServices();
+
+        return services;
+    }
+
 
     public static IApplicationBuilder UseDynamicReporting(this WebApplication app) => app.UseDynamicReporting(config: null);
 
@@ -32,7 +54,8 @@ public static class ApplicationBuilderExtensions
         var cfg = DefaultReportConfiguration.Default();
 
         config?.Invoke(cfg);
-        app.MapMethods(cfg.RoutePattern, cfg.HttpMethods, async (context) => await HandleReportActionsAsync(context, app));
+
+        app.MapMethods(cfg.RoutePattern, cfg.HttpMethods, async (context) => await HandleReportActionsAsync(context, app).ConfigureAwait(false));
         return app;
     }
 
@@ -49,7 +72,7 @@ public static class ApplicationBuilderExtensions
 
         var factory = app.ApplicationServices.GetService<IDynamicReportService>()!;
 
-        var (result, actionContext) = await factory.ExecuteAsync(new(long.Parse(id!.ToString()!), action?.ToString() ?? "Index", controller?.ToString(), null));
+        var (result, actionContext) = await factory.ExecuteAsync(new(long.Parse(id!.ToString()!, System.Globalization.CultureInfo.InvariantCulture), action?.ToString() ?? "Index", controller?.ToString(), null)).ConfigureAwait(false);
 
         if (result is not null)
         {
@@ -58,7 +81,7 @@ public static class ApplicationBuilderExtensions
                 HttpContext = context,
                 ActionDescriptor = new(),
                 RouteData = context.GetRouteData(),
-            });
+            }).ConfigureAwait(false);
         }
     }
 }

@@ -7,7 +7,7 @@ using RuntimeLoading.Services;
 using System.Linq;
 using RuntimeLoading.wwwroot.Reports.ReportNameHere.Models;
 namespace RuntimeLoading.wwwroot.Reports.ReportNameHere;
-
+// TODO: Can we upate the route path to "CreateEdit.cshtml" and automatically interpret the report route?
 public class ReportController : DynamicRazorEngine.Models.ReportControllerBase
 {
     private const string CreateEditViewPath = "~/wwwroot/Reports/{0}/CreateEdit.cshtml";
@@ -74,6 +74,7 @@ public class ReportController : DynamicRazorEngine.Models.ReportControllerBase
         return View(Url.Content(string.Format(CreateEditViewPath, ReportId)), vm);
     }
 
+    // Demonstrates that FromServices can be used.
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async System.Threading.Tasks.Task<IActionResult> Delete(CreateEditViewModel vm, [FromServices] IExampleService exampleService)

@@ -46,24 +46,24 @@ internal sealed class DynamicReportService : IDynamicReportService
 
     public async Task<(IActionResult? Result, ActionContext? ActionContext)> ExecuteAsync(ControllerFactoryRequest request)
     {
-        _logger.LogDebug("Executing DynamicControllerFactor for {request}", request);
-        var report = await _reportService.GetAsync(request.ReportId) ?? throw new ArgumentException(nameof(request.ReportId));
+        LoggerMessage.Define<ControllerFactoryRequest>(LogLevel.Debug, new EventId(), "Executing DynamicControllerFactor for {Request}")(_logger, request, null);
+        var report = await _reportService.GetAsync(request.ReportId).ConfigureAwait(false) ?? throw new ArgumentException(nameof(request.ReportId));
 
-        var compilation = await _compilationServices.CompileAsync(report);
+        var compilation = await _compilationServices.CompileAsync(report).ConfigureAwait(false);
 
         if (!compilation.Success || compilation.MainControllerType is null)
         {
             return (new StatusCodeResult(StatusCodes.Status500InternalServerError), null);
         }
 
-        var controllerInstance = compilation.MainControllerType.CreateInstance<Controller>(compilation.Assembly, _serviceProvider);
+        using var controllerInstance = compilation.MainControllerType.CreateInstance<Controller>(compilation.Assembly, _serviceProvider);
 
         if (controllerInstance is not Controller cb)
         {
             return (new StatusCodeResult(StatusCodes.Status500InternalServerError), null);
         }
 
-        var actionResult = await InvokeControllerActionAsync(compilation.MainControllerType, compilation.Assembly, cb, request);
+        var actionResult = await InvokeControllerActionAsync(compilation.MainControllerType, compilation.Assembly, cb, request).ConfigureAwait(false);
 
         return actionResult;
     }
@@ -98,8 +98,8 @@ internal sealed class DynamicReportService : IDynamicReportService
             instance.ControllerContext = controllerContext;
 
             var modelBindingResult = request.ControllerContext is not null
-                ? await _modelBindingService.BindControllerModelAsync(instance, request.ControllerContext, actionProvider)
-                : await _modelBindingService.BindControllerModelAsync(instance, controllerContext);
+                ? await _modelBindingService.BindControllerModelAsync(request.ControllerContext, actionProvider).ConfigureAwait(false)
+                : await _modelBindingService.BindControllerModelAsync(controllerContext).ConfigureAwait(false);
 
 
             // Invoke the action method with the bound parameters
@@ -133,10 +133,12 @@ internal sealed class DynamicReportService : IDynamicReportService
                 return (new OkObjectResult(response), instance.ControllerContext);
             }
         }
+#pragma warning disable CA1031
         catch
         {
 
         }
+#pragma warning restore CA1031
         finally
         {
             _applicationPartManager.ApplicationParts.Remove(assemblyPart);

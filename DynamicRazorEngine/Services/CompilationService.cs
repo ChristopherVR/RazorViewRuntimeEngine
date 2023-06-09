@@ -53,7 +53,7 @@ internal sealed class CompilationService
 
         foreach (var file in Directory.EnumerateFiles(path, "*.cs", SearchOption.AllDirectories))
         {
-            string contents = await File.ReadAllTextAsync(file);
+            string contents = await File.ReadAllTextAsync(file).ConfigureAwait(false);
             syntaxTrees.Add(CSharpSyntaxTree.ParseText(contents));
         }
 
@@ -119,7 +119,7 @@ internal sealed class CompilationService
         byte[] assemblyBytes = ms.ToArray();
         var assembly = Assembly.Load(assemblyBytes);
         Directory.CreateDirectory($"{path}\\Assembly");
-        await File.WriteAllBytesAsync($"{path}\\Assembly\\CompiledReport.dll", assemblyBytes);
+        await File.WriteAllBytesAsync($"{path}\\Assembly\\CompiledReport.dll", assemblyBytes).ConfigureAwait(false);
         var type = GetControllerTypeInfo(assembly, report.MainController);
         
         return new() 
@@ -146,7 +146,10 @@ internal sealed class CompilationService
 
         if (CheckIfFileIsOutdated(assemblyPath, cacheDuration))
         {
-            try {  File.Delete(assemblyPath); } catch { }
+            try {  File.Delete(assemblyPath); }
+#pragma warning disable CA1031 
+            catch { }
+#pragma warning restore CA1031
             return null;
         }
 
@@ -161,17 +164,19 @@ internal sealed class CompilationService
                 MainControllerType = GetControllerTypeInfo(assembly, controller),
             };
         }
+#pragma warning disable CA1031
         catch
         {
             return null;
         }
+#pragma warning restore CA1031
     }
 
     private static bool CheckIfFileIsOutdated(string assemblyPath, TimeSpan cacheDuration)
         => File.GetCreationTimeUtc(assemblyPath).Add(cacheDuration) < DateTime.UtcNow;
 
     private static System.Reflection.TypeInfo? GetControllerTypeInfo(Assembly assembly, string? name)
-        => assembly.GetExportedTypes().FirstOrDefault(y => y.IsAssignableTo(typeof(ControllerBase)) && (name is null ? true : y.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase)))?.GetTypeInfo();
+        => assembly.GetExportedTypes().FirstOrDefault(y => y.IsAssignableTo(typeof(ControllerBase)) && (name is null || y.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase)))?.GetTypeInfo();
 
 }
 

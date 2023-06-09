@@ -1,5 +1,5 @@
 using DynamicRazorEngine.Extensions;
-using DynamicRazorEngine.Interfaces;
+using DynamicRazorEngine.Factories;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using RuntimeLoading.Services;
 
@@ -17,8 +17,11 @@ public class Program
         builder.Services.AddLogging();
         builder.Services.AddHttpContextAccessor();
 
-        builder.Services.AddDynamicReportingServices();
-        builder.Services.AddSingleton<IReportService, ReportingService>();
+        // To Configure default options
+
+        builder.Services.Configure<ReportingConfig>(builder.Configuration.GetSection(ReportingConfig.Section));
+
+        builder.Services.AddDynamicReportingServices<ReportingService>();
         builder.Services.AddSingleton<IExampleService, ExampleService>();
 
         builder.Services.AddSingleton<IActionContextAccessor, ActionContextAccessor>();
@@ -34,6 +37,7 @@ public class Program
         }
 
         app.UseHttpsRedirection();
+
         app.UseStaticFiles();
 
         app.UseRouting();
@@ -41,8 +45,18 @@ public class Program
         app.UseAuthorization();
 
         app.MapRazorPages();
+        var options = builder.Configuration.GetSection(ReportingConfig.Section).Get<ReportingConfig>();
 
-        app.UseDynamicReporting();
+        app.UseDynamicReporting(c =>
+        {
+            if (options is not null)
+            {
+                c.WithDefaultCache(options.DefaultRuntimeCache)
+                .WithRoutePattern(options.RoutePattern)
+                .WithBasePath(options.BasePath)
+                .WithHttpMethods(options.HttpMethods);
+            }
+        });
 
         app.Run();
     }
