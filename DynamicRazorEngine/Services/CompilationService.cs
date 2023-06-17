@@ -29,13 +29,17 @@ internal sealed class CompilationService
         _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
 
         _reportingConfig = reportingConfigOptions?.Value ?? DefaultReportConfiguration.Default();
+
+        if (_reportingConfig.BasePath is null)
+        {
+            _reportingConfig = DefaultReportConfiguration.Default();
+        }
     }
 
     /// <summary>
     /// Compiles a report's Source code into a <see cref="Assembly"/> object.
     /// </summary>
     /// <param name="report"></param>
-    /// <param name="config"></param>
     /// <returns>Returns a <see cref="CompilationResult"/></returns>
     public async Task<CompilationResult> CompileAsync(Report report)
     {

@@ -41,7 +41,7 @@ public static class ApplicationBuilderExtensions
             throw new InvalidOperationException($"The Type {reportingType.FullName} does not implement {nameof(IReportService)}");
         }
 
-        services.AddSingleton(reportingType, interfaceType).RegisterDynamicServices();
+        services.AddSingleton(interfaceType, reportingType).RegisterDynamicServices();
 
         return services;
     }

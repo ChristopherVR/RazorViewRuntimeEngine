@@ -1,10 +1,19 @@
-﻿using System.Collections.Generic;
-
-namespace DynamicRazorEngine.Factories;
+﻿namespace DynamicRazorEngine.Factories;
 
 public sealed class ReportingConfig
 {
+    public static ReportingConfig Default => new(
+        "wwwroot\\Reports",
+        TimeSpan.FromHours(6),
+        "/reports/{reportId:int}/{action?}/{controller?}",
+        new string[] { "GET", "POST", "PATCH", "PUT", "DELETE", "PATCH" });
+
     public const string Section = "Reporting";
+    public ReportingConfig()
+    {
+        BasePath = RoutePattern = null!;
+        HttpMethods = Array.Empty<string>();
+    }
     private ReportingConfig(string basePath, TimeSpan defaultRuntimeCache, string routePattern, IReadOnlyCollection<string> httpMethods)
     {
         BasePath = basePath;
