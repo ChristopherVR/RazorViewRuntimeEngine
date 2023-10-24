@@ -26,7 +26,7 @@ public static class ApplicationBuilderExtensions
     {
         var reportingType = typeof(TReportingService);
 
-        services.AddDynamicReportingServices(reportingType).RegisterDynamicServices();
+        services.AddDynamicReportingServices(reportingType);
 
         return services;
     }
@@ -51,7 +51,7 @@ public static class ApplicationBuilderExtensions
 
     public static IApplicationBuilder UseDynamicReporting(this WebApplication app, Action<ReportingConfig>? config)
     {
-        var cfg = DefaultReportConfiguration.Default();
+        var cfg = DefaultReportConfiguration.GetValueOrDefault(value: null);
 
         config?.Invoke(cfg);
 

@@ -28,12 +28,7 @@ internal sealed class CompilationService
             .WithOptimizationLevel(OptimizationLevel.Release);
         _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
 
-        _reportingConfig = reportingConfigOptions?.Value ?? DefaultReportConfiguration.Default();
-
-        if (_reportingConfig.BasePath is null)
-        {
-            _reportingConfig = DefaultReportConfiguration.Default();
-        }
+        _reportingConfig = DefaultReportConfiguration.GetValueOrDefault(reportingConfigOptions?.Value);
     }
 
     /// <summary>

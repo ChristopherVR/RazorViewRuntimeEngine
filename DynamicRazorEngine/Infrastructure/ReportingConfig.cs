@@ -47,6 +47,7 @@ public sealed class ReportingConfig
     public ReportingConfig WithDefaultCache(TimeSpan defaultCache) => new(BasePath, defaultCache, RoutePattern, HttpMethods);
 
     public ReportingConfig WithHttpMethods(params string[] httpMethods) => new(BasePath, DefaultRuntimeCache, RoutePattern, httpMethods);
+
     public ReportingConfig WithHttpMethods(IReadOnlyCollection<string> httpMethods) => new(BasePath, DefaultRuntimeCache, RoutePattern, httpMethods);
 
     public ReportingConfig WithRoutePattern(string routePattern) => new(BasePath, DefaultRuntimeCache, routePattern, HttpMethods);

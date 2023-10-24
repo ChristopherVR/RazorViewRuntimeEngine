@@ -84,9 +84,8 @@ internal sealed class DynamicReportService : IDynamicReportService
         {
             var actionProvider = _actionDescriptorCollectionProvider.ActionDescriptors.Items
                 .OfType<ControllerActionDescriptor>()
-                .First(z => (z.ActionName.Equals(request.Action, StringComparison.OrdinalIgnoreCase) || z.ActionName.StartsWith(request.Action, StringComparison.OrdinalIgnoreCase))
-                && z.ControllerTypeInfo.FullName == type.FullName
-                && z.EndpointMetadata.OfType<HttpMethodMetadata>().Any(y => y.HttpMethods.Contains(_httpContextAccessor.HttpContext!.Request.Method)));
+                .Where(z => z.ControllerTypeInfo.FullName == type.FullName && z.EndpointMetadata.OfType<HttpMethodMetadata>().Any(y => y.HttpMethods.Contains(_httpContextAccessor.HttpContext!.Request.Method)))
+                .First(z => z.ActionName.Equals(request.Action, StringComparison.OrdinalIgnoreCase) || z.ActionName.StartsWith(request.Action, StringComparison.OrdinalIgnoreCase));
 
             var controllerContext = request.ControllerContext ?? new(new ActionContext()
             {
@@ -98,7 +97,7 @@ internal sealed class DynamicReportService : IDynamicReportService
             instance.ControllerContext = controllerContext;
 
             var modelBindingResult = request.ControllerContext is not null
-                ? await _modelBindingService.BindControllerModelAsync(request.ControllerContext, actionProvider).ConfigureAwait(false)
+                ? await _modelBindingService.BindControllerModelAsync(request.ControllerContext).ConfigureAwait(false)
                 : await _modelBindingService.BindControllerModelAsync(controllerContext).ConfigureAwait(false);
 
 

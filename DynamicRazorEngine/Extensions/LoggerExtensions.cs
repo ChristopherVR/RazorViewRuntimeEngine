@@ -13,9 +13,13 @@ internal static class LoggerExtensions
     internal static object CreateGenericLogger(this ILoggerFactory factory, Type declaredType)
     {
         Type genericClass = typeof(ILogger<>).MakeGenericType(declaredType);
-        const string CreateLogger = nameof(CreateLogger);
+
         var genericType = declaredType.GetGenericArguments().First();
-        var mi = typeof(LoggerFactoryExtensions).GetMethods().Single(m => m.Name == CreateLogger && m.IsGenericMethodDefinition);
+        
+        var mi = typeof(LoggerFactoryExtensions)
+            .GetMethods()
+            .Single(m => m.Name == nameof(LoggerFactoryExtensions.CreateLogger) && m.IsGenericMethodDefinition);
+        
         var gi = mi.MakeGenericMethod(declaredType.GetGenericArguments().First());
         return gi.Invoke(null, new[] { factory })!;
     }

@@ -25,8 +25,8 @@ internal sealed class ModelBindingService : IModelBindingService
         _metadataProvider = metadataProvider ?? throw new ArgumentNullException(nameof(metadataProvider));
     }
 
-    public async Task<IList<ModelBindingResult>> BindControllerModelAsync(ControllerContext controllerContext, Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor actionDescriptor)
-        => await BindModelAsync(controllerContext, actionDescriptor).ConfigureAwait(false);
+    public async Task<IList<ModelBindingResult>> BindControllerModelAsync(ControllerContext controllerContext)
+        => await BindModelAsync(controllerContext).ConfigureAwait(false);
 
     public async Task<IList<ModelBindingResult>> BindControllerModelAsync(ActionContext actionContext)
     {
@@ -35,10 +35,10 @@ internal sealed class ModelBindingService : IModelBindingService
             ValueProviderFactories = _options.ValueProviderFactories,
         };
 
-        return await BindModelAsync(controllerContext, (Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor)actionContext.ActionDescriptor).ConfigureAwait(false);
+        return await BindModelAsync(controllerContext).ConfigureAwait(false);
     }
 
-    private async Task<IList<ModelBindingResult>> BindModelAsync(ControllerContext controllerContext, Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor actionDescriptor)
+    private async Task<IList<ModelBindingResult>> BindModelAsync(ControllerContext controllerContext)
     {
         var valueProvider = await CompositeValueProvider.CreateAsync(controllerContext).ConfigureAwait(false);
 
